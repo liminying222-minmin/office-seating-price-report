@@ -1,0 +1,49 @@
+name: Deploy report to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Rebuild original HTML
+        shell: bash
+        run: |
+          mkdir -p _site
+          : > _site/index.html
+          for part in parts/index-*.b64; do
+            base64 --decode "$part" >> _site/index.html
+          done
+          test "$(wc -c < _site/index.html)" -eq 3315558
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
