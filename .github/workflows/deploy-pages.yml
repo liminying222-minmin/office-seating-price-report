@@ -27,7 +27,7 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Rebuild original HTML
+      - name: Rebuild and patch report
         shell: bash
         run: |
           mkdir -p _site
@@ -36,6 +36,23 @@ jobs:
             base64 --decode "$part" >> _site/index.html
           done
           test "$(wc -c < _site/index.html)" -eq 3316902
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          html_path = Path('_site/index.html')
+          js_path = Path('patch-v55.js')
+          html = html_path.read_text(encoding='utf-8')
+          js = js_path.read_text(encoding='utf-8')
+          marker = '</body>'
+          payload = '<script>\n' + js + '\n</script>\n'
+          if marker in html:
+              html = html.replace(marker, payload + marker, 1)
+          else:
+              html += payload
+          html_path.write_text(html, encoding='utf-8')
+          Path('_site/report-v55.html').write_text(html, encoding='utf-8')
+          PY
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
